@@ -25,10 +25,25 @@ char *memcached_get(memcached_st *ptr,
                     memcached_return_t *error);
 
 LIBMEMCACHED_API
+char *memcached_get_with_vbucket(memcached_st *ptr,
+                    const char *key, size_t key_length,
+                    uint16_t vbucket_id,
+                    size_t *value_length,
+                    uint32_t *flags,
+                    memcached_return_t *error);
+
+LIBMEMCACHED_API
 memcached_return_t memcached_mget(memcached_st *ptr,
                                   const char * const *keys,
                                   const size_t *key_length,
                                   size_t number_of_keys);
+
+LIBMEMCACHED_API
+memcached_return_t memcached_mget_with_vbucket(memcached_st *ptr,
+                                  const char * const *keys,
+                                  const size_t *key_length,
+                                  size_t number_of_keys,
+                                  uint16_t vbucket_id);
 
 LIBMEMCACHED_API
 char *memcached_get_by_key(memcached_st *ptr,
@@ -53,6 +68,7 @@ char *memcached_fetch(memcached_st *ptr,
                       size_t *value_length,
                       uint32_t *flags,
                       memcached_return_t *error);
+
 
 LIBMEMCACHED_API
 memcached_result_st *memcached_fetch_result(memcached_st *ptr,

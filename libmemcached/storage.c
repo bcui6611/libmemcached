@@ -54,6 +54,7 @@ static memcached_return_t memcached_send_binary(memcached_st *ptr,
                                                 time_t expiration,
                                                 uint32_t flags,
                                                 uint64_t cas,
+                                                uint16_t vbucketid,
                                                 memcached_storage_action_t verb);
 
 static inline memcached_return_t memcached_send(memcached_st *ptr,
@@ -63,6 +64,7 @@ static inline memcached_return_t memcached_send(memcached_st *ptr,
                                                 time_t expiration,
                                                 uint32_t flags,
                                                 uint64_t cas,
+                                                uint16_t vbucketid,
                                                 memcached_storage_action_t verb)
 {
   bool to_write;
@@ -95,7 +97,7 @@ static inline memcached_return_t memcached_send(memcached_st *ptr,
     rc= memcached_send_binary(ptr, instance, server_key,
                               key, key_length,
                               value, value_length, expiration,
-                              flags, cas, verb);
+                              flags, cas, vbucketid, verb);
     WATCHPOINT_IF_LABELED_NUMBER(instance->io_wait_count.read > 2, "read IO_WAIT", instance->io_wait_count.read);
     WATCHPOINT_IF_LABELED_NUMBER(instance->io_wait_count.write > 2, "write_IO_WAIT", instance->io_wait_count.write);
   }
@@ -234,7 +236,22 @@ memcached_return_t memcached_set(memcached_st *ptr, const char *key, size_t key_
   LIBMEMCACHED_MEMCACHED_SET_START();
   rc= memcached_send(ptr, key, key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, SET_OP);
+                     expiration, flags, 0, 0, SET_OP);
+  LIBMEMCACHED_MEMCACHED_SET_END();
+  return rc;
+}
+
+memcached_return_t memcached_set_with_vbucket(memcached_st *ptr, const char *key, size_t key_length,
+                                 const char *value, size_t value_length,
+                                 time_t expiration,
+                                 uint32_t flags,
+                                 uint16_t vbucketid)
+{
+  memcached_return_t rc;
+  LIBMEMCACHED_MEMCACHED_SET_START();
+  rc= memcached_send(ptr, key, key_length,
+                     key, key_length, value, value_length,
+                     expiration, flags, 0, vbucketid, SET_OP);
   LIBMEMCACHED_MEMCACHED_SET_END();
   return rc;
 }
@@ -249,7 +266,23 @@ memcached_return_t memcached_add(memcached_st *ptr,
   LIBMEMCACHED_MEMCACHED_ADD_START();
   rc= memcached_send(ptr, key, key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, ADD_OP);
+                     expiration, flags, 0, 0, ADD_OP);
+  LIBMEMCACHED_MEMCACHED_ADD_END();
+  return rc;
+}
+
+memcached_return_t memcached_add_with_vbucket(memcached_st *ptr,
+                                 const char *key, size_t key_length,
+                                 const char *value, size_t value_length,
+                                 time_t expiration,
+                                 uint32_t flags,
+                                 uint16_t vbucketid)
+{
+  memcached_return_t rc;
+  LIBMEMCACHED_MEMCACHED_ADD_START();
+  rc= memcached_send(ptr, key, key_length,
+                     key, key_length, value, value_length,
+                     expiration, flags, 0, vbucketid, ADD_OP);
   LIBMEMCACHED_MEMCACHED_ADD_END();
   return rc;
 }
@@ -264,7 +297,7 @@ memcached_return_t memcached_replace(memcached_st *ptr,
   LIBMEMCACHED_MEMCACHED_REPLACE_START();
   rc= memcached_send(ptr, key, key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, REPLACE_OP);
+                     expiration, flags, 0, 0, REPLACE_OP);
   LIBMEMCACHED_MEMCACHED_REPLACE_END();
   return rc;
 }
@@ -278,7 +311,7 @@ memcached_return_t memcached_prepend(memcached_st *ptr,
   memcached_return_t rc;
   rc= memcached_send(ptr, key, key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, PREPEND_OP);
+                     expiration, flags, 0, 0, PREPEND_OP);
   return rc;
 }
 
@@ -291,7 +324,7 @@ memcached_return_t memcached_append(memcached_st *ptr,
   memcached_return_t rc;
   rc= memcached_send(ptr, key, key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, APPEND_OP);
+                     expiration, flags, 0, 0, APPEND_OP);
   return rc;
 }
 
@@ -305,7 +338,7 @@ memcached_return_t memcached_cas(memcached_st *ptr,
   memcached_return_t rc;
   rc= memcached_send(ptr, key, key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, cas, CAS_OP);
+                     expiration, flags, cas, 0, CAS_OP);
   return rc;
 }
 
@@ -321,7 +354,7 @@ memcached_return_t memcached_set_by_key(memcached_st *ptr,
   LIBMEMCACHED_MEMCACHED_SET_START();
   rc= memcached_send(ptr, master_key, master_key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, SET_OP);
+                     expiration, flags, 0, 0, SET_OP);
   LIBMEMCACHED_MEMCACHED_SET_END();
   return rc;
 }
@@ -337,7 +370,7 @@ memcached_return_t memcached_add_by_key(memcached_st *ptr,
   LIBMEMCACHED_MEMCACHED_ADD_START();
   rc= memcached_send(ptr, master_key, master_key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, ADD_OP);
+                     expiration, flags, 0, 0, ADD_OP);
   LIBMEMCACHED_MEMCACHED_ADD_END();
   return rc;
 }
@@ -353,7 +386,7 @@ memcached_return_t memcached_replace_by_key(memcached_st *ptr,
   LIBMEMCACHED_MEMCACHED_REPLACE_START();
   rc= memcached_send(ptr, master_key, master_key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, REPLACE_OP);
+                     expiration, flags, 0, 0, REPLACE_OP);
   LIBMEMCACHED_MEMCACHED_REPLACE_END();
   return rc;
 }
@@ -368,7 +401,7 @@ memcached_return_t memcached_prepend_by_key(memcached_st *ptr,
   memcached_return_t rc;
   rc= memcached_send(ptr, master_key, master_key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, PREPEND_OP);
+                     expiration, flags, 0, 0, PREPEND_OP);
   return rc;
 }
 
@@ -382,7 +415,7 @@ memcached_return_t memcached_append_by_key(memcached_st *ptr,
   memcached_return_t rc;
   rc= memcached_send(ptr, master_key, master_key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, 0, APPEND_OP);
+                     expiration, flags, 0, 0, APPEND_OP);
   return rc;
 }
 
@@ -397,7 +430,7 @@ memcached_return_t memcached_cas_by_key(memcached_st *ptr,
   memcached_return_t rc;
   rc= memcached_send(ptr, master_key, master_key_length,
                      key, key_length, value, value_length,
-                     expiration, flags, cas, CAS_OP);
+                     expiration, flags, cas, 0, CAS_OP);
   return rc;
 }
 
@@ -469,6 +502,7 @@ static memcached_return_t memcached_send_binary(memcached_st *ptr,
                                                 time_t expiration,
                                                 uint32_t flags,
                                                 uint64_t cas,
+                                                uint16_t vbucketid,
                                                 memcached_storage_action_t verb)
 {
   bool flush;
@@ -481,6 +515,7 @@ static memcached_return_t memcached_send_binary(memcached_st *ptr,
   request.message.header.request.opcode= get_com_code(verb, noreply);
   request.message.header.request.keylen= htons((uint16_t)(key_length + ptr->prefix_key_length));
   request.message.header.request.datatype= PROTOCOL_BINARY_RAW_BYTES;
+  request.message.header.request.reserved= htons(vbucketid);
   if (verb == APPEND_OP || verb == PREPEND_OP)
     send_length -= 8; /* append & prepend does not contain extras! */
   else

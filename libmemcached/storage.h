@@ -24,11 +24,27 @@ memcached_return_t memcached_set(memcached_st *ptr, const char *key, size_t key_
                                  const char *value, size_t value_length,
                                  time_t expiration,
                                  uint32_t  flags);
+
+LIBMEMCACHED_API
+memcached_return_t memcached_set_with_vbucket(memcached_st *ptr, const char *key, size_t key_length,
+                                 const char *value, size_t value_length,
+                                 time_t expiration,
+                                 uint32_t  flags,
+                                 uint16_t  vbucket);
+
 LIBMEMCACHED_API
 memcached_return_t memcached_add(memcached_st *ptr, const char *key, size_t key_length,
                                  const char *value, size_t value_length,
                                  time_t expiration,
                                  uint32_t  flags);
+
+LIBMEMCACHED_API
+memcached_return_t memcached_add_with_vbucket(memcached_st *ptr, const char *key, size_t key_length,
+                                 const char *value, size_t value_length,
+                                 time_t expiration,
+                                 uint32_t  flags,
+                                 uint16_t  vbucket);
+
 LIBMEMCACHED_API
 memcached_return_t memcached_replace(memcached_st *ptr, const char *key, size_t key_length,
                                      const char *value, size_t value_length,

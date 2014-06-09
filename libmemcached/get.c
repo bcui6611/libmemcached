@@ -11,6 +11,24 @@
 
 #include "common.h"
 
+
+static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
+                                                     const char *master_key,
+                                                     size_t master_key_length,
+                                                     const char * const *keys,
+                                                     const size_t *key_length,
+                                                     size_t number_of_keys,
+                                                     bool mget_mode,
+                                                     uint16_t vbucketid);
+
+static char *memcached_get_by_key_with_vbucket(memcached_st *ptr,
+                           const char *master_key,
+                           size_t master_key_length,
+                           const char *key, size_t key_length,
+                           uint16_t vbucketid,
+                           size_t *value_length,
+                           uint32_t *flags,
+                           memcached_return_t *error);
 /*
   What happens if no servers exist?
 */
@@ -24,18 +42,41 @@ char *memcached_get(memcached_st *ptr, const char *key,
                               flags, error);
 }
 
-static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
-                                                     const char *master_key,
-                                                     size_t master_key_length,
-                                                     const char * const *keys,
-                                                     const size_t *key_length,
-                                                     size_t number_of_keys,
-                                                     bool mget_mode);
+char *memcached_get_with_vbucket(memcached_st *ptr, const char *key,
+                    size_t key_length,
+                    uint16_t vbucketid,
+                    size_t *value_length,
+                    uint32_t *flags,
+                    memcached_return_t *error)
+{
+  return memcached_get_by_key_with_vbucket(ptr, NULL, 0, key, key_length, vbucketid, value_length,
+                              flags, error);
+}
 
 char *memcached_get_by_key(memcached_st *ptr,
                            const char *master_key,
                            size_t master_key_length,
                            const char *key, size_t key_length,
+                           size_t *value_length,
+                           uint32_t *flags,
+                           memcached_return_t *error)
+{
+	return memcached_get_by_key_with_vbucket(ptr,
+											 master_key,
+											 master_key_length,
+											 key,
+											 key_length,
+											 0,
+											 value_length,
+											 flags,
+											 error);
+}
+
+static char *memcached_get_by_key_with_vbucket(memcached_st *ptr,
+                           const char *master_key,
+                           size_t master_key_length,
+                           const char *key, size_t key_length,
+                           uint16_t vbucketid,
                            size_t *value_length,
                            uint32_t *flags,
                            memcached_return_t *error)
@@ -54,7 +95,7 @@ char *memcached_get_by_key(memcached_st *ptr,
   /* Request the key */
   *error= memcached_mget_by_key_real(ptr, master_key, master_key_length,
                                      (const char * const *)&key,
-                                     &key_length, 1, false);
+                                     &key_length, 1, false, vbucketid);
 
   value= memcached_fetch(ptr, NULL, NULL,
                          value_length, flags, error);
@@ -128,13 +169,25 @@ memcached_return_t memcached_mget(memcached_st *ptr,
   return memcached_mget_by_key(ptr, NULL, 0, keys, key_length, number_of_keys);
 }
 
+memcached_return_t memcached_mget_with_vbucket(memcached_st *ptr,
+                                  const char * const *keys,
+                                  const size_t *key_length,
+                                  size_t number_of_keys,
+                                  uint16_t vbucketid)
+{
+  return memcached_mget_by_key_real(ptr, NULL, 0, keys,
+                                    key_length, number_of_keys, true, vbucketid);
+}
+
+
 static memcached_return_t binary_mget_by_key(memcached_st *ptr,
                                              uint32_t master_server_key,
                                              bool is_master_key_set,
                                              const char * const *keys,
                                              const size_t *key_length,
                                              size_t number_of_keys,
-                                             bool mget_mode);
+                                             bool mget_mode,
+                                             uint16_t vbucketid);
 
 static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
                                                      const char *master_key,
@@ -142,7 +195,8 @@ static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
                                                      const char * const *keys,
                                                      const size_t *key_length,
                                                      size_t number_of_keys,
-                                                     bool mget_mode)
+                                                     bool mget_mode,
+                                                     uint16_t vbucketid)
 {
   bool failures_occured_in_sending= false;
   const char *get_command= "get ";
@@ -198,7 +252,7 @@ static memcached_return_t memcached_mget_by_key_real(memcached_st *ptr,
   if (ptr->flags.binary_protocol)
   {
     return binary_mget_by_key(ptr, master_server_key, is_master_key_set, keys,
-                              key_length, number_of_keys, mget_mode);
+                              key_length, number_of_keys, mget_mode, vbucketid);
   }
 
   if (ptr->flags.support_cas)
@@ -321,7 +375,7 @@ memcached_return_t memcached_mget_by_key(memcached_st *ptr,
                                          size_t number_of_keys)
 {
   return memcached_mget_by_key_real(ptr, master_key, master_key_length, keys,
-                                    key_length, number_of_keys, true);
+                                    key_length, number_of_keys, true, 0);
 }
 
 memcached_return_t memcached_mget_execute(memcached_st *ptr,
@@ -370,7 +424,9 @@ static memcached_return_t simple_binary_mget(memcached_st *ptr,
                                              bool is_master_key_set,
                                              const char * const *keys,
                                              const size_t *key_length,
-                                             size_t number_of_keys, bool mget_mode)
+                                             size_t number_of_keys,
+                                             bool mget_mode,
+                                             uint16_t vbucketid)
 {
   memcached_return_t rc= MEMCACHED_NOTFOUND;
 
@@ -425,6 +481,7 @@ static memcached_return_t simple_binary_mget(memcached_st *ptr,
 
     request.message.header.request.keylen= htons((uint16_t)(key_length[x] + ptr->prefix_key_length));
     request.message.header.request.datatype= PROTOCOL_BINARY_RAW_BYTES;
+    request.message.header.request.reserved = htons(vbucketid);
     request.message.header.request.bodylen= htonl((uint32_t)( key_length[x] + ptr->prefix_key_length));
 
     struct libmemcached_io_vector_st vector[]=
@@ -593,14 +650,15 @@ static memcached_return_t binary_mget_by_key(memcached_st *ptr,
                                              const char * const *keys,
                                              const size_t *key_length,
                                              size_t number_of_keys,
-                                             bool mget_mode)
+                                             bool mget_mode,
+                                             uint16_t vbucketid)
 {
   memcached_return_t rc;
 
   if (ptr->number_of_replicas == 0)
   {
     rc= simple_binary_mget(ptr, master_server_key, is_master_key_set,
-                           keys, key_length, number_of_keys, mget_mode);
+                           keys, key_length, number_of_keys, mget_mode, vbucketid);
   }
   else
   {

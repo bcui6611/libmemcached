@@ -21,6 +21,13 @@ memcached_return_t memcached_delete(memcached_st *ptr, const char *key, size_t k
                                     time_t expiration);
 
 LIBMEMCACHED_API
+memcached_return_t memcached_delete_with_vbucket(memcached_st *ptr,
+								    const char *key,
+								    size_t key_length,
+                                    time_t expiration,
+                                    uint16_t vbucketid);
+
+LIBMEMCACHED_API
 memcached_return_t memcached_delete_by_key(memcached_st *ptr,
                                            const char *master_key, size_t master_key_length,
                                            const char *key, size_t key_length,

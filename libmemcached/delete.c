@@ -1,6 +1,19 @@
 #include "common.h"
 #include "memcached/protocol_binary.h"
 
+static memcached_return_t memcached_delete_by_key_real(memcached_st *ptr,
+                                           const char *master_key, size_t master_key_length,
+                                           const char *key, size_t key_length,
+                                           time_t expiration,
+                                           uint16_t vbucketid);
+
+static inline memcached_return_t binary_delete(memcached_st *ptr,
+                                               uint32_t server_key,
+                                               const char *key,
+                                               size_t key_length,
+                                               bool flush,
+                                               uint16_t vbucketid);
+
 memcached_return_t memcached_delete(memcached_st *ptr, const char *key, size_t key_length,
                                     time_t expiration)
 {
@@ -8,16 +21,30 @@ memcached_return_t memcached_delete(memcached_st *ptr, const char *key, size_t k
                                  key, key_length, expiration);
 }
 
-static inline memcached_return_t binary_delete(memcached_st *ptr,
-                                               uint32_t server_key,
-                                               const char *key,
-                                               size_t key_length,
-                                               bool flush);
+memcached_return_t memcached_delete_with_vbucket(memcached_st *ptr,
+									const char *key,
+									size_t key_length,
+                                    time_t expiration,
+                                    uint16_t vbucketid)
+{
+  return memcached_delete_by_key_real(ptr, key, key_length,
+                                 key, key_length, expiration, vbucketid);
+}
 
 memcached_return_t memcached_delete_by_key(memcached_st *ptr,
                                            const char *master_key, size_t master_key_length,
                                            const char *key, size_t key_length,
                                            time_t expiration)
+{
+  return memcached_delete_by_key_real(ptr, key, key_length,
+	                                 key, key_length, expiration, 0);
+}
+
+memcached_return_t memcached_delete_by_key_real(memcached_st *ptr,
+                                           const char *master_key, size_t master_key_length,
+                                           const char *key, size_t key_length,
+                                           time_t expiration,
+                                           uint16_t vbucketid)
 {
   bool to_write;
   memcached_return_t rc;
@@ -46,7 +73,7 @@ memcached_return_t memcached_delete_by_key(memcached_st *ptr,
   {
     likely (! expiration)
     {
-      rc= binary_delete(ptr, server_key, key, key_length, to_write);
+      rc= binary_delete(ptr, server_key, key, key_length, to_write, vbucketid);
     }
     else
     {
@@ -151,7 +178,8 @@ static inline memcached_return_t binary_delete(memcached_st *ptr,
                                                uint32_t server_key,
                                                const char *key,
                                                size_t key_length,
-                                               bool flush)
+                                               bool flush,
+                                               uint16_t vbucketid)
 {
   memcached_server_write_instance_st instance;
   protocol_binary_request_delete request= {.bytes= {0}};
@@ -165,6 +193,7 @@ static inline memcached_return_t binary_delete(memcached_st *ptr,
     request.message.header.request.opcode= PROTOCOL_BINARY_CMD_DELETE;
   request.message.header.request.keylen= htons((uint16_t)(key_length + ptr->prefix_key_length));
   request.message.header.request.datatype= PROTOCOL_BINARY_RAW_BYTES;
+  request.message.header.request.reserved = htons(vbucketid);
   request.message.header.request.bodylen= htonl((uint32_t)(key_length + ptr->prefix_key_length));
 
   if (ptr->flags.use_udp && ! flush)
