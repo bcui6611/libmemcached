@@ -88,6 +88,7 @@ static inline memcached_return_t memcached_send(memcached_st *ptr,
 
   server_key= memcached_generate_hash_with_redistribution(ptr, master_key, master_key_length);
   instance= memcached_server_instance_fetch(ptr, server_key);
+  instance->read_buffer_length = 0;
 
   WATCHPOINT_SET(instance->io_wait_count.read= 0);
   WATCHPOINT_SET(instance->io_wait_count.write= 0);
